@@ -1,3 +1,6 @@
 requests
 beautifulsoup4
 requests_cache
+atproto
+pillow
+
