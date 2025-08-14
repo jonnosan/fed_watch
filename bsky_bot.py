@@ -1,6 +1,6 @@
 #!/home/jonnosan/fed_watch/.venv/bin/python3
 
- mport logging
+import logging
 import argparse
 import fed_watch
 import os
