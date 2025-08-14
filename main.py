@@ -1,3 +1,4 @@
+#!/home/jonnosan/fed_watch/.venv/bin/python3
 import requests
 import requests_cache
 from bs4 import BeautifulSoup
