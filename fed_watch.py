@@ -51,7 +51,8 @@ def get_open_files_links(logger=None):
                 links.append((a.text.strip(), a['href']))
     return links
 
-def get_last_updated_date(page_url, logger=None, docs_within_days=None, days=None):
+def get_recently_updated_docs(page_url, logger=None, days=2):
+    recently_updated_docs=[]
     if logger:
         logger.debug(f"Requesting page: {page_url}")
     resp = requests.get(page_url)
@@ -68,10 +69,13 @@ def get_last_updated_date(page_url, logger=None, docs_within_days=None, days=Non
             continue
         for row in rows[1:]:
             cols = row.find_all(['td', 'th'])
-            if len(cols) < 3:
+            if len(cols) < 4:
                 continue
             date_text = cols[0].get_text(strip=True)
             doc_name = cols[2].get_text(strip=True)
+            doc_date=cols[1].get_text(strip=True)
+            doc_owner = cols[3].get_text(strip=True)
+            doc_description=f"{doc_date} {doc_owner}  {doc_name}" 
             doc_url = None
             a_tag = cols[2].find('a', href=True)
             if a_tag:
@@ -87,14 +91,13 @@ def get_last_updated_date(page_url, logger=None, docs_within_days=None, days=Non
                     if logger:
                         logger.debug(f"Could not parse date: {date_text}")
                     continue
-            if docs_within_days is not None and days is not None:
-                if (now - doc_date).days <= days:
-                    docs_within_days.append((doc_name, doc_url, doc_date))
+            if (now - doc_date).days <= days:
+                recently_updated_docs.append((doc_description, doc_url, doc_date))
             if (most_recent_date is None) or (doc_date > most_recent_date):
                 if logger:
                     logger.debug(f"Updating most recent date: {doc_date}")
                 most_recent_date = doc_date
-    return most_recent_date
+    return most_recent_date,recently_updated_docs
 
 def main():
     parser = argparse.ArgumentParser(description="Scrape Federal Court open files and last updated dates.")
@@ -120,7 +123,7 @@ def main():
         logger.info(f"Found {len(links)} links under 'Open files':")
         for name, href in links:
             url = href if href.startswith("http") else f"https://www.fedcourt.gov.au{href}"
-            last_updated = get_last_updated_date(url, logger)
+            last_updated = get_recently_updated_docs(url, logger)
             if last_updated:
                 logger.info(f"{name}: {url} (Last updated: {last_updated.strftime('%d %B %Y')})")
             else:
@@ -128,11 +131,10 @@ def main():
     elif args.show_docs:
         for name, href in links:
             url = href if href.startswith("http") else f"https://www.fedcourt.gov.au{href}"
-            docs_within_days = []
-            get_last_updated_date(url, logger, docs_within_days, args.days)
-            if docs_within_days:
+            most_recent_date,recently_updated_docs=get_recently_updated_docs(url, logger, args.days)
+            if recently_updated_docs:
                 logger.info(f"\n{name}: {url}")
-                for doc_name, doc_url, doc_date in docs_within_days:
+                for doc_name, doc_url, doc_date in recently_updated_docs:
                     if doc_url and not doc_url.startswith('http'):
                         doc_url = f"https://www.fedcourt.gov.au{doc_url}"
                     logger.info(f"  {doc_name}: {doc_url if doc_url else ''} (Published: {doc_date.strftime('%d %B %Y')})")
@@ -140,7 +142,7 @@ def main():
         recent = []
         for name, href in links:
             url = href if href.startswith("http") else f"https://www.fedcourt.gov.au{href}"
-            last_updated = get_last_updated_date(url, logger)
+            last_updated,recently_updated_docs = get_recently_updated_docs(url, logger)
             if last_updated and (now - last_updated).days <= args.days:
                 recent.append((name, url, last_updated))
         for name, url, last_updated in recent:
